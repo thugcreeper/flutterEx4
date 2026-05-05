@@ -27,6 +27,7 @@ class _ResultPageState extends State<ResultPage>
   late final Animation<double> _fadeIn;
   late final Animation<Offset> _slideUp;
   int _moneyDelta = 0; // 本局金錢變動量（正=獲得，負=扣除），預設 0 待結算後更新
+  bool _hasSettled = false;
 
   @override
   void initState() {
@@ -55,6 +56,9 @@ class _ResultPageState extends State<ResultPage>
 
   /// 結算金錢並更新顯示（在 postFrameCallback 中呼叫，避免 build 期間觸發 ValueNotifier）
   void _settleMoney() {
+    if (_hasSettled) return;
+    _hasSettled = true;
+
     final int reward = widget.entryFee * 3;
     final bool isWin = widget.playerScore >= widget.cpuScore;
     int delta;
@@ -62,6 +66,7 @@ class _ResultPageState extends State<ResultPage>
     if (isWin) {
       // 贏了：增加獎勵
       PlayerAccount.addMoney(reward);
+      PlayerAccount.battleWin();
       delta = reward;
     } else {
       // 輸了：扣除金額；若錢不夠就扣到 0
@@ -73,7 +78,11 @@ class _ResultPageState extends State<ResultPage>
         delta = -PlayerAccount.money.value;
         PlayerAccount.money.value = 0;
       }
+
+      PlayerAccount.battleLose();
     }
+
+    PlayerAccount.recordBattle(isWin);
 
     setState(() {
       _moneyDelta = delta;
@@ -89,7 +98,6 @@ class _ResultPageState extends State<ResultPage>
   @override
   Widget build(BuildContext context) {
     final bool isWin = widget.playerScore >= widget.cpuScore;
-    const playerAvatar = 'assets/images/appIcon.png';
     const cpuAvatar = 'assets/images/hall/yoBattle.png';
 
     return Scaffold(
@@ -99,7 +107,7 @@ class _ResultPageState extends State<ResultPage>
           // 背景圖
           Image.asset(
             isWin
-                ? 'assets/images/hall/youwing.jpg'
+                ? 'assets/images/hall/youwin.jpg'
                 : 'assets/images/hall/youlose.jpg',
             fit: BoxFit.cover,
           ),
@@ -136,13 +144,20 @@ class _ResultPageState extends State<ResultPage>
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _AvatarCard(
-                            assetPath: playerAvatar,
-                            label: '你',
-                            score: widget.playerScore,
-                            color: Colors.blue.shade300,
-                            isWinner: isWin,
-                            showCrown: isWin,
+                          ValueListenableBuilder<String?>(
+                            valueListenable: PlayerAccount.battleAvatar,
+                            builder: (_, selectedAvatar, __) {
+                              return _AvatarCard(
+                                assetPath:
+                                    selectedAvatar ??
+                                    PlayerAccount.defaultBattleAvatar,
+                                label: '你',
+                                score: widget.playerScore,
+                                color: Colors.blue.shade300,
+                                isWinner: isWin,
+                                showCrown: isWin,
+                              );
+                            },
                           ),
                           Column(
                             children: [
@@ -310,8 +325,8 @@ class _AvatarCard extends StatelessWidget {
             ],
           ),
           child: ClipOval(
-            child: Image.asset(
-              assetPath,
+            child: Image(
+              image: PlayerAccount.getBattleAvatarImageProvider(assetPath),
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => Center(
                 child: Text(
@@ -417,6 +432,8 @@ class _ScoreCompareCard extends StatelessWidget {
     final playerRatio = total == 0
         ? 0.5
         : (playerScore / total).clamp(0.0, 1.0);
+    final playerFlex = (playerRatio * 100).round().clamp(1, 99);
+    final cpuFlex = 100 - playerFlex;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -449,11 +466,11 @@ class _ScoreCompareCard extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  flex: (playerRatio * 100).round(),
+                  flex: playerFlex,
                   child: Container(height: 10, color: Colors.blue.shade400),
                 ),
                 Expanded(
-                  flex: ((1 - playerRatio) * 100).round(),
+                  flex: cpuFlex,
                   child: Container(height: 10, color: Colors.red.shade400),
                 ),
               ],

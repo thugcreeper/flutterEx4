@@ -11,12 +11,14 @@ class QuestionCard extends StatelessWidget {
     required this.onAnswer,
     this.playerAnswerIndex, // 玩家選擇的索引，null 表示未作答
     this.cpuAnswerIndex, // 電腦選擇的索引，null 表示尚未揭曉
+    this.questionLocked = false,
   });
 
   final Question question;
   final ValueChanged<int> onAnswer;
   final int? playerAnswerIndex;
   final int? cpuAnswerIndex;
+  final bool questionLocked;
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +81,7 @@ class QuestionCard extends StatelessWidget {
                     correctIndex: question.correctIndex,
                     playerAnswerIndex: playerAnswerIndex,
                     cpuAnswerIndex: cpuAnswerIndex,
+                    questionLocked: questionLocked,
                     onTap: () => onAnswer(index),
                   ),
                 );
@@ -109,12 +112,14 @@ class QuestionCard extends StatelessWidget {
                       onAnswer: onAnswer,
                       playerAnswerIndex: playerAnswerIndex,
                       cpuAnswerIndex: cpuAnswerIndex,
+                      questionLocked: questionLocked,
                     )
                   : _TextOptions(
                       question: question,
                       onAnswer: onAnswer,
                       playerAnswerIndex: playerAnswerIndex,
                       cpuAnswerIndex: cpuAnswerIndex,
+                      questionLocked: questionLocked,
                     ),
             ),
           ],
@@ -189,12 +194,14 @@ class _TextOptions extends StatelessWidget {
     required this.onAnswer,
     required this.playerAnswerIndex,
     required this.cpuAnswerIndex,
+    required this.questionLocked,
   });
 
   final Question question;
   final ValueChanged<int> onAnswer;
   final int? playerAnswerIndex;
   final int? cpuAnswerIndex;
+  final bool questionLocked;
 
   static const List<String> _labels = ['A', 'B', 'C', 'D'];
 
@@ -213,6 +220,7 @@ class _TextOptions extends StatelessWidget {
               correctIndex: question.correctIndex,
               playerAnswerIndex: playerAnswerIndex,
               cpuAnswerIndex: cpuAnswerIndex,
+              questionLocked: questionLocked,
               onTap: () => onAnswer(i),
             ),
           ),
@@ -231,6 +239,7 @@ class _OptionTile extends StatelessWidget {
     required this.correctIndex,
     required this.playerAnswerIndex,
     required this.cpuAnswerIndex,
+    required this.questionLocked,
     required this.onTap,
     this.label,
   });
@@ -240,6 +249,7 @@ class _OptionTile extends StatelessWidget {
   final int correctIndex;
   final int? playerAnswerIndex;
   final int? cpuAnswerIndex;
+  final bool questionLocked;
   final VoidCallback onTap;
   final String? label; // 選項標籤（A/B/C/D），部分排版不傳
 
@@ -258,7 +268,7 @@ class _OptionTile extends StatelessWidget {
       playerAnswerIndex,
       cpuAnswerIndex,
     );
-    final answered = playerAnswerIndex != null || cpuAnswerIndex != null;
+    final answered = questionLocked || playerAnswerIndex != null;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -323,12 +333,14 @@ class _ImageOptions extends StatelessWidget {
     required this.onAnswer,
     required this.playerAnswerIndex,
     required this.cpuAnswerIndex,
+    required this.questionLocked,
   });
 
   final Question question;
   final ValueChanged<int> onAnswer;
   final int? playerAnswerIndex;
   final int? cpuAnswerIndex;
+  final bool questionLocked;
 
   // 當選項圖片載入失敗時使用的備用圖片
   static const String _fallbackImageUrl =
@@ -336,7 +348,7 @@ class _ImageOptions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final answered = playerAnswerIndex != null || cpuAnswerIndex != null;
+    final answered = questionLocked || playerAnswerIndex != null;
 
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

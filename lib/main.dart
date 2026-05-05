@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '/pages/hall_page.dart';
 import 'pages/city_selection_page.dart';
+import 'pages/profile_page.dart';
 
 void main() {
   // App entry point.
@@ -14,6 +15,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Quiz Duel',
       initialRoute: '/hall',
       theme: ThemeData(
@@ -23,6 +25,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/hall': (context) => const HallPage(),
         '/cities': (context) => const CitySelectionPage(),
+        '/profile': (context) => const ProfilePage(),
       },
     );
   }

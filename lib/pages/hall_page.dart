@@ -74,7 +74,10 @@ class _HallPageState extends State<HallPage> {
     final progress = _bankValue / _bankMax;
 
     return Scaffold(
-      appBar: AppBar(title: const LvlAndMoneyBanner()),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        title: const LvlAndMoneyBanner(),
+      ),
       body: SafeArea(
         child: Column(
           children: [

@@ -63,18 +63,18 @@ class _CitySelectionPageState extends State<CitySelectionPage> {
   @override
   Widget build(BuildContext context) {
     final cities = DemoData.cities;
+    const pageBackgroundColor = Color.fromARGB(255, 255, 246, 234);
     return Scaffold(
+      backgroundColor: pageBackgroundColor,
       appBar: AppBar(
         // Use title area to avoid cramped leading width.
-        title: Wrap(
-          spacing: 12, // 自動處理子元件間距
-          children: [const LvlAndMoneyBanner()],
-        ),
+        backgroundColor: Colors.white,
+        title: Wrap(children: [const LvlAndMoneyBanner()]),
       ),
       body: Stack(
         children: [
           ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(10),
             itemCount: cities.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
