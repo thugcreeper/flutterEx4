@@ -26,6 +26,7 @@ dependencies:
   fl_chart: ^0.70.2
   circular_countdown_timer: ^0.2.4
   audioplayers: ^6.0.0
+  flutter_animate: ^4.5.2
 
 dev_dependencies:
   flutter_test:

@@ -72,7 +72,14 @@ class _GamePageState extends State<GamePage>
   int get _questionMultiplier => _isFinalQuestion ? 2 : 1;
   // 獲取本題答對分數
   int get _correctAnswerScore => _currentScorePerQuestion * _questionMultiplier;
-  int get _wrongAnswerPenalty => -5 * _questionMultiplier;
+  // 動態扣分：依已過秒數（越慢扣越多）。
+  // 例如：若玩家在第9秒才答錯（_timeLeft == 1），則已過秒數為 9，扣 9 分。
+  int _dynamicWrongPenalty({int? timeLeft}) {
+    final elapsed = _secondsPerQuestion - (timeLeft ?? _timeLeft);
+    final clamped = elapsed.clamp(1, _secondsPerQuestion);
+    return -clamped.toInt() * _questionMultiplier;
+  }
+
   // 獲取當前題目物件
   Question get _currentQuestion => widget.city.questions[_questionIndex];
 
@@ -207,7 +214,8 @@ class _GamePageState extends State<GamePage>
     // 若玩家未作答，扣分
     if (_playerAnswerIndex == null) {
       setState(() {
-        _playerScore += _wrongAnswerPenalty; // 未答扣分
+        // 未答視為耗盡時間，按最大懲罰（等同於整題已過秒數）扣分
+        _playerScore += _dynamicWrongPenalty(timeLeft: 0); // 未答扣分
         _lastPlayerAnswerCorrect = false;
       });
     }
@@ -241,13 +249,19 @@ class _GamePageState extends State<GamePage>
 
     // 判斷玩家答案是否正確
     final isCorrect = index == _currentQuestion.correctIndex;
-    debugPrint('Answer ${_currentQuestion.id}: $index (correct: $isCorrect)');
+    debugPrint('Player ${_currentQuestion.id}: $index (correct: $isCorrect)');
 
     // 記錄玩家選擇並更新分數
     setState(() {
       _playerAnswerIndex = index; // 觸發題目卡片顯示玩家選擇
-      _playerScore += isCorrect ? _correctAnswerScore : _wrongAnswerPenalty;
+      final scoreToAdd = isCorrect
+          ? _correctAnswerScore
+          : _dynamicWrongPenalty();
+      _playerScore += scoreToAdd;
       _lastPlayerAnswerCorrect = isCorrect;
+      debugPrint(
+        'Player score: $_currentScorePerQuestion, add: $scoreToAdd, total: $_playerScore',
+      );
     });
 
     // 情境1：CPU已揭曉答案，可以立即結束此題
@@ -269,7 +283,6 @@ class _GamePageState extends State<GamePage>
     // 情境3：CPU還未決定，鎖定題目並等待CPU決定
     // 當CPU定時器觸發時，會自動揭曉並進行下一題
     _isQuestionClosed = true;
-    _timer?.cancel();
     _pulseController.stop();
   }
 
@@ -297,6 +310,7 @@ class _GamePageState extends State<GamePage>
   //  3. 根據結果更新CPU分數(使用時間衰減後的分數)
   //  4. 根據revealImmediately決定立即揭曉或隱藏
   void _resolveCpuAnswer({required bool revealImmediately}) {
+    final cpuScoreSnapshot = _currentScorePerQuestion;
     final correct = _currentQuestion.correctIndex;
     // CPU答對機率為60%
     final cpuPickCorrect = _random.nextDouble() < 0.6;
@@ -307,10 +321,15 @@ class _GamePageState extends State<GamePage>
 
     setState(() {
       // 計算CPU分數(使用相同的時間衰減機制和倍數)
-      _cpuScore += cpuIndex == correct
-          ? _correctAnswerScore // 答對加分
-          : _wrongAnswerPenalty; // 答錯扣分
+      final scoreToAdd = cpuIndex == correct
+          ? cpuScoreSnapshot *
+                _questionMultiplier // 答對加分
+          : _dynamicWrongPenalty(); // 答錯扣分
+      _cpuScore += scoreToAdd;
       _lastCpuAnswerCorrect = cpuIndex == correct;
+      debugPrint(
+        'CPU ${_currentQuestion.id}: index=$cpuIndex, timeLeft=$_timeLeft, score=$_currentScorePerQuestion, add=$scoreToAdd, total=$_cpuScore',
+      );
 
       if (revealImmediately) {
         // 立即揭曉CPU答案(觸發題目卡片顯示CPU勾/叉)
@@ -499,7 +518,10 @@ class _GamePageState extends State<GamePage>
                 left: 0,
                 right: 0,
                 child: IgnorePointer(
-                  child: const Center(child: _FinalQuestionBanner()),
+                  child: const SizedBox(
+                    width: double.infinity,
+                    child: _FinalQuestionBanner(),
+                  ),
                 ),
               ),
           ],
@@ -522,9 +544,6 @@ class _FinalQuestionBannerState extends State<_FinalQuestionBanner>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
-  // 縮放動畫(使用彈性曲線)
-  late final Animation<double> _scale;
-
   // 透明度動畫(使用淡出曲線)
   late final Animation<double> _opacity;
 
@@ -537,8 +556,6 @@ class _FinalQuestionBannerState extends State<_FinalQuestionBanner>
       duration: const Duration(milliseconds: 900), // 0.9秒動畫
     )..forward(); // 立即啟動動畫
 
-    // 縮放動畫：使用彈性過度效果
-    _scale = CurvedAnimation(parent: _controller, curve: Curves.elasticOut);
     // 透明度動畫：使用淡出效果
     _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
   }
@@ -557,15 +574,12 @@ class _FinalQuestionBannerState extends State<_FinalQuestionBanner>
         return Opacity(
           // 透明度從0漸變到1
           opacity: _opacity.value,
-          child: Transform.scale(
-            // 縮放從0.78(初始小)漸變到1.2(最大)
-            scale: 0.78 + (0.42 * _scale.value),
-            child: child,
-          ),
+          child: child,
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: const BoxDecoration(
           color: Colors.transparent, // 徹底去掉背景
         ),
@@ -580,26 +594,29 @@ class _FinalQuestionBannerState extends State<_FinalQuestionBanner>
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ).createShader(bounds),
-          child: Text(
-            '最後一題！ 雙倍獎懲！',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: .w900, // 使用最粗體
-              letterSpacing: 4, // 增加字間距營造高級感
-              // 2. 利用多層陰影製造「文字懸浮」效果
-              shadows: [
-                Shadow(
-                  offset: const Offset(0, 4),
-                  blurRadius: 10,
-                  color: Colors.black.withOpacity(0.5),
-                ),
-                Shadow(
-                  offset: const Offset(0, 0),
-                  blurRadius: 20,
-                  color: Colors.white.withOpacity(0.2), // 微弱的外發光
-                ),
-              ],
+          child: SizedBox(
+            width: double.infinity,
+            child: Text(
+              '最後一題！ 雙倍獎懲！',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: .w900, // 使用最粗體
+                letterSpacing: 4, // 增加字間距營造高級感
+                // 2. 利用多層陰影製造「文字懸浮」效果
+                shadows: [
+                  Shadow(
+                    offset: const Offset(0, 4),
+                    blurRadius: 10,
+                    color: Colors.black.withOpacity(0.5),
+                  ),
+                  Shadow(
+                    offset: const Offset(0, 0),
+                    blurRadius: 20,
+                    color: Colors.white.withOpacity(0.2), // 微弱的外發光
+                  ),
+                ],
+              ),
             ),
           ),
         ),

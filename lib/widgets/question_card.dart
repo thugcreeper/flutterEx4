@@ -57,9 +57,9 @@ class QuestionCard extends StatelessWidget {
                         },
                         child: Image.asset(
                           question.imageUrl ?? '',
-                          width: 160,
+                          width: double.infinity,
                           height: 120,
-                          fit: BoxFit.cover,
+                          fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) =>
                               const Icon(Icons.broken_image, size: 80),
                         ),
@@ -202,16 +202,16 @@ double _optionBorderWidth(
   int? cpuAnswerIndex,
 ) {
   final answered = playerAnswerIndex != null || cpuAnswerIndex != null;
-  if (!answered) return 1.4;
+  if (!answered) return 1.2;
 
   final isCorrect = index == correctIndex;
   final isPlayerPick = index == playerAnswerIndex;
   final isCpuPick = index == cpuAnswerIndex;
 
-  if (isCorrect) return 4.0;
+  if (isCorrect) return 2.0;
   // 玩家或電腦選錯的選項邊框稍微加粗
-  if (isPlayerPick || isCpuPick) return 2.2;
-  return 1.4;
+  if (isPlayerPick || isCpuPick) return 1.6;
+  return 1.2;
 }
 
 // ── 純文字選項 ────────────────────────────────────────
@@ -316,7 +316,7 @@ class _OptionTile extends StatelessWidget {
           onTap: answered ? null : onTap, // 答題後禁止再次點擊
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
                 Expanded(

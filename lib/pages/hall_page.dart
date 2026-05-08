@@ -1,9 +1,10 @@
-//這是進入城市前的大廳頁面，也是啟動app看到的第一個葉面
+// Hall Page - Cyber Style Version
 import 'package:flutter/material.dart';
-import '../widgets/lvlAndMoneyBanner.dart';
-import '../models/player_account.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
-// 讓 HallPage 變成 StatefulWidget 以便更新存款進度。
+import '../models/player_account.dart';
+import '../widgets/lvlAndMoneyBanner.dart';
+
 class HallPage extends StatefulWidget {
   const HallPage({super.key});
 
@@ -11,46 +12,63 @@ class HallPage extends StatefulWidget {
   State<HallPage> createState() => _HallPageState();
 }
 
-class _HallPageState extends State<HallPage> {
+class _HallPageState extends State<HallPage>
+    with SingleTickerProviderStateMixin {
   static const String _fallbackImageUrl =
       'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQs9gUXKwt2KErC_jWWlkZkGabxpeGchT-fyw&s';
 
-  Future<void> _handleBankTap() async {
-    final collected = PlayerAccount.collectBankMoney();
-    final hasMoney = collected > 0;
-    if (hasMoney) {
-      PlayerAccount.addMoney(collected);
-    }
-    _showMoneySnackBar(
-      context,
-      isSuccess: hasMoney,
-      title: hasMoney ? '成功領取 \$$collected' : '目前沒有可領取的金錢!!!',
-
-      //icon saving是撲滿，另一個是沙漏
-      icon: hasMoney ? Icons.savings : Icons.hourglass_bottom,
-      accent: hasMoney ? const Color(0xFF26C281) : const Color(0xFFFF8A65),
-    );
-  }
+  late AnimationController _glowController;
 
   @override
   void initState() {
     super.initState();
-    // 全域銀行計時器由 PlayerAccount 維護，頁面進來時只要確保它已啟動。
+
     PlayerAccount.ensureBankTimer();
+
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _glowController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleBankTap() async {
+    final collected = PlayerAccount.collectBankMoney();
+    final hasMoney = collected > 0;
+
+    if (hasMoney) {
+      PlayerAccount.addMoney(collected);
+    }
+
+    _showMoneySnackBar(
+      context,
+      isSuccess: hasMoney,
+      title: hasMoney ? '領取 \$$collected' : '銀行沒錢啦!',
+      icon: hasMoney ? Icons.savings : Icons.hourglass_bottom,
+      accent: hasMoney ? const Color(0xFF00E676) : Colors.orangeAccent,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        elevation: 0,
+        backgroundColor: const Color.fromARGB(255, 255, 255, 255),
         title: const LvlAndMoneyBanner(),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            //上半部分:Yo Battle 進入選擇城市
+            // ===================== TOP =====================
             Expanded(
+              flex: 7,
               child: Stack(
                 children: [
                   Positioned.fill(
@@ -65,41 +83,135 @@ class _HallPageState extends State<HallPage> {
                       },
                     ),
                   ),
-                  Center(
-                    child: OutlinedButton(
-                      onPressed: () =>
-                          Navigator.of(context).pushNamed('/cities'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.orangeAccent,
-                        side: const BorderSide(
-                          color: Colors.orangeAccent,
-                          width: 2,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 40,
-                          vertical: 15,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        backgroundColor: Colors.black87, // 深色底讓文字更跳
-                      ),
-                      child: const Text(
-                        'YO BATTLE!',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
+
+                  // overlay
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.2),
+                            Colors.black.withOpacity(0.75),
+                          ],
                         ),
                       ),
                     ),
                   ),
+
+                  // title
+                  Positioned(
+                    top: 40,
+                    left: 20,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                              "YO BATTLE",
+                              style: TextStyle(
+                                color: Colors.orangeAccent,
+                                fontSize: 42,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 3,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.orangeAccent.withOpacity(0.8),
+                                    blurRadius: 20,
+                                  ),
+                                ],
+                              ),
+                            )
+                            .animate(
+                              onPlay: (controller) {
+                                controller.repeat(reverse: true);
+                              },
+                            )
+                            .fade(duration: 1200.ms)
+                            .shimmer(duration: 2000.ms, color: Colors.white),
+                      ],
+                    ),
+                  ),
+
+                  // enter button
+                  Center(
+                    child:
+                        GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).pushNamed('/cities');
+                              },
+                              child: AnimatedBuilder(
+                                animation: _glowController,
+                                builder: (context, child) {
+                                  return Transform.scale(
+                                    scale: 1 + (_glowController.value * 0.04),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 42,
+                                        vertical: 20,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(25),
+                                        gradient: const LinearGradient(
+                                          colors: [
+                                            Color(0xFF00D1FF),
+                                            Color(0xFF66E6FF),
+                                          ],
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF00D1FF)
+                                                .withOpacity(
+                                                  0.6 +
+                                                      (_glowController.value *
+                                                          0.3),
+                                                ),
+                                            blurRadius: 30,
+                                            spreadRadius: 3,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: const [
+                                          Icon(
+                                            Icons.play_arrow_rounded,
+                                            color: Colors.black,
+                                            size: 34,
+                                          ),
+                                          SizedBox(width: 10),
+                                          Text(
+                                            "開始知識king!",
+                                            style: TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 2,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            )
+                            .animate()
+                            .fadeIn(duration: 900.ms)
+                            .scale(
+                              begin: const Offset(0.8, 0.8),
+                              end: const Offset(1, 1),
+                              duration: 700.ms,
+                              curve: Curves.easeOutBack,
+                            ),
+                  ),
                 ],
               ),
             ),
-            const Divider(height: 5, thickness: 5, color: Colors.grey),
-            // 下半部 Bank 區塊
+
+            // ===================== BOTTOM =====================
             Expanded(
+              flex: 3,
               child: Stack(
                 children: [
                   Positioned.fill(
@@ -114,60 +226,150 @@ class _HallPageState extends State<HallPage> {
                       },
                     ),
                   ),
-                  // Bank tap target.
+
                   Positioned.fill(
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(onTap: _handleBankTap),
-                    ),
+                    child: Container(color: Colors.black.withOpacity(0.65)),
                   ),
-                  // 半透明卡片美化 + 進度條
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: ValueListenableBuilder<int>(
-                      valueListenable: PlayerAccount.bankValue,
-                      builder: (context, bankValue, _) {
-                        final progress = bankValue / PlayerAccount.bankMax;
-                        return Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.65),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.orangeAccent.withOpacity(0.6),
-                              ),
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // 顯示銀行存款數值
-                                Text(
-                                  'Bank: $bankValue / ${PlayerAccount.bankMax}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                // 進度條隨時間變化
-                                LinearProgressIndicator(
-                                  value: progress,
-                                  minHeight: 12,
-                                  backgroundColor: Colors.white24,
-                                  valueColor:
-                                      const AlwaysStoppedAnimation<Color>(
-                                        Colors.orangeAccent,
+
+                  // 改為把點擊事件綁在銀行卡片本身，讓 ripple 在卡片上顯示
+                  ValueListenableBuilder<int>(
+                    valueListenable: PlayerAccount.bankValue,
+                    builder: (context, bankValue, _) {
+                      final progress = bankValue / PlayerAccount.bankMax;
+
+                      final isReady = bankValue >= PlayerAccount.bankMax;
+
+                      return Center(
+                        child: Material(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(25),
+                          child: InkWell(
+                            onTap: _handleBankTap,
+                            borderRadius: BorderRadius.circular(25),
+                            splashColor: Colors.white24,
+                            highlightColor: Colors.white10,
+                            child:
+                                AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 600,
                                       ),
-                                ),
-                              ],
-                            ),
+                                      margin: const EdgeInsets.all(20),
+                                      padding: const EdgeInsets.all(22),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(25),
+                                        gradient: LinearGradient(
+                                          colors: isReady
+                                              ? [
+                                                  const Color(0xFF00C853),
+                                                  const Color(0xFFB2FF59),
+                                                ]
+                                              : [
+                                                  const Color(0xFF1B1B1B),
+                                                  const Color(0xFF303030),
+                                                ],
+                                        ),
+                                        border: Border.all(
+                                          color: isReady
+                                              ? Colors.white
+                                              : Colors.orangeAccent,
+                                          width: 2,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: isReady
+                                                ? Colors.greenAccent
+                                                      .withOpacity(0.7)
+                                                : Colors.orangeAccent
+                                                      .withOpacity(0.3),
+                                            blurRadius: isReady ? 30 : 15,
+                                            spreadRadius: isReady ? 3 : 1,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons
+                                                .account_balance_wallet_rounded,
+                                            color: isReady
+                                                ? Colors.black
+                                                : Colors.orangeAccent,
+                                            size: 42,
+                                          ),
+
+                                          const SizedBox(height: 10),
+
+                                          Text(
+                                            isReady ? "銀行金庫已滿!" : "銀行",
+                                            style: TextStyle(
+                                              color: isReady
+                                                  ? Colors.black
+                                                  : Colors.orangeAccent,
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 2,
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 12),
+
+                                          Text(
+                                            "\$$bankValue / ${PlayerAccount.bankMax}",
+                                            style: TextStyle(
+                                              color: isReady
+                                                  ? Colors.black
+                                                  : Colors.white,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 0),
+
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              15,
+                                            ),
+                                            child: LinearProgressIndicator(
+                                              value: progress,
+                                              minHeight: 14,
+                                              backgroundColor: Colors.black
+                                                  .withOpacity(0.3),
+                                              //銀行進度條顏色
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    isReady
+                                                        ? Colors.black
+                                                        : const Color.fromARGB(
+                                                            255,
+                                                            246,
+                                                            239,
+                                                            51,
+                                                          ),
+                                                  ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                    .animate(
+                                      onPlay: (controller) {
+                                        if (isReady) {
+                                          controller.repeat(reverse: true);
+                                        }
+                                      },
+                                    )
+                                    .shimmer(
+                                      duration: 2000.ms,
+                                      color: isReady
+                                          ? Colors.white
+                                          : Colors.orangeAccent,
+                                    ),
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -179,7 +381,8 @@ class _HallPageState extends State<HallPage> {
   }
 }
 
-//自訂snack bar
+// ===================== SNACKBAR =====================
+
 void _showMoneySnackBar(
   BuildContext context, {
   required bool isSuccess,
@@ -191,64 +394,39 @@ void _showMoneySnackBar(
     ..clearSnackBars()
     ..showSnackBar(
       SnackBar(
-        behavior: SnackBarBehavior.floating,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        padding: EdgeInsets.zero,
-        duration: const Duration(seconds: 2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(15),
         content: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
             gradient: LinearGradient(
-              // 根據成功與否切換不同的漸層顏色
               colors: isSuccess
-                  ? [const Color(0xFF0F3D3E), accent, const Color(0xFF8DEB9C)]
-                  : [const Color(0xFF5A1E1E), accent, const Color(0xFFFFC857)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.18),
-              width: 1.2,
+                  ? [const Color(0xFF00C853), const Color(0xFFB2FF59)]
+                  : [const Color(0xFFFF6D00), const Color(0xFFFFD54F)],
             ),
             boxShadow: [
               BoxShadow(
-                color: accent.withOpacity(0.28),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
+                color: accent.withOpacity(0.4),
+                blurRadius: 20,
+                spreadRadius: 2,
               ),
             ],
           ),
           child: Row(
             children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.16),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: 14),
+              Icon(icon, color: Colors.black, size: 32),
+              const SizedBox(width: 15),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
+                  ),
                 ),
               ),
             ],
