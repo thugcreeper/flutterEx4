@@ -11,7 +11,7 @@ class ScoreBar extends StatelessWidget {
   final String label;
   final String avatarAsset;
   final bool? answerCorrect; // 用於顯示玩家或電腦是否答對的狀態
-  final bool showThinking;
+  // 已移除沙漏顯示：只在分數條顯示勾/叉
 
   const ScoreBar({
     super.key,
@@ -22,7 +22,6 @@ class ScoreBar extends StatelessWidget {
     required this.label,
     required this.avatarAsset,
     this.answerCorrect, // 新增參數
-    this.showThinking = false,
   });
 
   @override
@@ -60,20 +59,7 @@ class ScoreBar extends StatelessWidget {
                   ),
                 ),
               ),
-              if (showThinking)
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.28),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.hourglass_top,
-                    color: Colors.white.withOpacity(0.95),
-                    size: 26,
-                  ),
-                ),
+              // CPU 思考改為不顯示沙漏；答案揭曉時用 answerCorrect 顯示勾/叉
             ],
           ),
         ),

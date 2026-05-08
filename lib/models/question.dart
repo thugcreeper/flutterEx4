@@ -17,6 +17,7 @@ class Question {
     required this.options,
     required this.correctIndex,
     this.imageUrl,
+    this.audioPath,
   });
 
   final String id;
@@ -25,4 +26,5 @@ class Question {
   final List<AnswerOption> options;
   final int correctIndex;
   final String? imageUrl;
+  final String? audioPath;
 }

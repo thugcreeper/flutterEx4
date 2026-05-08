@@ -12,12 +12,12 @@ class DemoData {
     '氣死偶勒',
     '我練功發自真心',
     '只要史坦那發起進攻，一切都會好起來的',
-    '我還有機會',
-    '你們這些敗類',
-    '我不想再看到你',
-    '這都是命運',
-    '你給我滾出去',
-    '我已經受夠了',
+    '你是一個一個一個啊',
+    '一袋米要扛幾樓',
+    '逮蝦戶',
+    '艾連被生生的逼進了浴缸',
+    '琦玉君你真的敢於面對',
+    '賣欸啊嘻 賣欸啊呼',
   ];
   // 選擇電影答案池
   static final List<String> movieAnswers = [
@@ -60,33 +60,49 @@ class DemoData {
       'id': 'txt1',
       'prompt': '哪一個是"帝國的毀滅"中元首的台詞空耳?',
       'answer': lineMemeAnswers[0],
+      'audioPath': 'audios/meinfuhrer.mp3',
     },
-    {'id': 'txt2', 'prompt': '哪一個是"德國瘋小子"的台詞空耳', 'answer': lineMemeAnswers[1]},
-    {'id': 'txt3', 'prompt': '"我還沒上車啊!"是哪部電影的名台詞?', 'answer': movieAnswers[0]},
+    {
+      'id': 'txt2',
+      'prompt': '哪一個是"德國瘋小子"的台詞空耳',
+      'answer': lineMemeAnswers[1],
+      'audioPath': 'audios/boy.mp3',
+    },
+    {
+      'id': 'txt3',
+      'prompt': '"我還沒上車啊!"是哪部電影的名台詞?',
+      'answer': movieAnswers[0],
+      'audioPath': 'audios/notGetIncar.mp3',
+    },
     {
       'id': 'txt4',
       'prompt': '"我不是針對你，我是說在做的各位都是🗑️"是哪部電影的名台詞?',
       'answer': movieAnswers[1],
+      'audioPath': 'audios/everyoneIsTrash.mp3',
     },
     {
       'id': 'txt5',
       'prompt': '"我又跳出去了，唉呀，我又跳進來啦！打我啊笨蛋"是哪部電影的名台詞?',
       'answer': movieAnswers[2],
+      'audioPath': 'audios/hitMeUIdiot.mp3',
     },
     {
       'id': 'txt6',
       'prompt': '誠實豆沙包、慚愧棒棒糖是出自哪部電影的道具?',
       'answer': movieAnswers[3],
+      'audioPath': 'audios/lollipop.mp3',
     },
     {
       'id': 'txt7',
       'prompt': '火影忍者中"大口痰拿去吃"的空耳是哪個忍術?',
       'answer': narutoAnswers[0],
+      'audioPath': 'audios/eatPhlegm.mp3',
     },
     {
       'id': 'txt8',
       'prompt': '火影忍者中"洗洗眼睛"的空耳是哪個忍術?',
       'answer': narutoAnswers[1],
+      'audioPath': 'audios/washEye.mp3',
     },
   ];
   // 圖片題設定（正確答案與題幹，並包含圖片路徑）
@@ -98,6 +114,7 @@ class DemoData {
       'answer': {
         'image': 'assets/images/songQuestion/1.jpg',
         'text': imageTextAnswers[0],
+        'audioPath': 'audios/ohAhAh.mp3',
       },
       'type': QuestionType.imageWithTextPrompt,
     },
@@ -108,6 +125,7 @@ class DemoData {
       'answer': {
         'image': 'assets/images/songQuestion/2.jpg',
         'text': imageTextAnswers[1],
+        'audioPath': 'audios/sofa.mp3',
       },
       'type': QuestionType.image,
     },
@@ -118,6 +136,7 @@ class DemoData {
       'answer': {
         'image': 'assets/images/songQuestion/3.jpg',
         'text': imageTextAnswers[2],
+        'audioPath': 'audios/22.mp3',
       },
       'type': QuestionType.image,
     },
@@ -128,6 +147,7 @@ class DemoData {
       'answer': {
         'image': 'assets/images/songQuestion/4.jpg',
         'text': imageTextAnswers[3],
+        'audioPath': 'audios/NGGYUP.mp3',
       },
       'type': QuestionType.image,
     },
@@ -138,6 +158,7 @@ class DemoData {
       'answer': {
         'image': 'assets/images/songQuestion/5.jpg',
         'text': imageTextAnswers[4],
+        'audioPath': 'audios/rock.mp3',
       },
       'type': QuestionType.image,
     },
@@ -148,6 +169,7 @@ class DemoData {
       'answer': {
         'image': 'assets/images/songQuestion/6.jpg',
         'text': imageTextAnswers[5],
+        'audioPath': 'audios/drama.mp3',
       },
       'type': QuestionType.image,
     },
@@ -158,6 +180,7 @@ class DemoData {
       'answer': {
         'image': 'assets/images/songQuestion/7.jpg',
         'text': imageTextAnswers[6],
+        'audioPath': 'audios/dududu.mp3',
       },
       'type': QuestionType.image,
     },
@@ -168,6 +191,7 @@ class DemoData {
       'answer': {
         'image': 'assets/images/songQuestion/8.jpg',
         'text': imageTextAnswers[7],
+        'audioPath': 'audios/power.mp3',
       },
       'type': QuestionType.image,
     },
@@ -178,12 +202,13 @@ class DemoData {
       'answer': {
         'image': 'assets/images/songQuestion/9.png',
         'text': imageTextAnswers[8],
+        'audioPath': 'audios/funky.mp3',
       },
       'type': QuestionType.image,
     },
   ];
-
-  static final List<CityLevel> cities = [
+  //用getter是為了每次取用時都能得到一組隨機的題目
+  static List<CityLevel> get cities => [
     CityLevel(
       name: '哈蘭',
       entryFee: 50,
@@ -222,6 +247,9 @@ class DemoData {
       final imageUrl = (answer is Map && answer['image'] != null)
           ? answer['image']
           : '';
+      final audioPath = (answer is Map && answer['audioPath'] != null)
+          ? answer['audioPath'].toString()
+          : '';
       final distractors = List<String>.from(
         imageTextAnswers.where((a) => a != correctText),
       );
@@ -239,6 +267,7 @@ class DemoData {
           options: options,
           correctIndex: correctIndex,
           imageUrl: imageUrl,
+          audioPath: audioPath,
         ),
       );
     }
@@ -274,10 +303,14 @@ class DemoData {
           type: QuestionType.text,
           options: options,
           correctIndex: correctIndex,
+          audioPath: q['audioPath']?.toString(),
         ),
       );
     }
     selected.shuffle(random);
+    debugPrint(
+      'DemoData: shuffled question order => ${selected.map((q) => q.id).toList()}',
+    );
     return selected;
   }
 }

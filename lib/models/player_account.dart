@@ -1,4 +1,5 @@
 // palyer_account資料類別，管理user的金錢、等級和經驗
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -16,7 +17,10 @@ class PlayerAccount {
   static final ValueNotifier<String?> battleAvatar = ValueNotifier<String?>(
     null,
   );
+  static final ValueNotifier<int> bankValue = ValueNotifier<int>(0);
   static const String defaultBattleAvatar = 'assets/images/avatar/me.png';
+  static const int bankMax = 200;
+  static Timer? _bankTimer;
 
   // 計算達到某個等級所需的總經驗值
   // 公式：基數 * (等級 - 1)^1.5，隨等級提高而增加
@@ -116,6 +120,27 @@ class PlayerAccount {
   static void addMoney(int amount) {
     if (amount <= 0) return;
     money.value += amount;
+  }
+
+  //銀行進度和計時器不再掛在 hall_page.dart 的頁面 state 上，
+  //而是移到 player_account.dart 裡統一管理，所以你從對戰頁回到首頁時，
+  //銀行不會因為 HallPage 重建就歸零。
+  static void ensureBankTimer() {
+    if (_bankTimer?.isActive ?? false) return;
+    _bankTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (bankValue.value < bankMax) {
+        bankValue.value += 1;
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  static int collectBankMoney() {
+    final collected = bankValue.value;
+    bankValue.value = 0;
+    ensureBankTimer();
+    return collected;
   }
 
   static bool spend(int amount) {

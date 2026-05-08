@@ -155,34 +155,61 @@ class _ProfilePageState extends State<ProfilePage> {
                           children: [
                             SizedBox(
                               height: 190,
-                              child: PieChart(
-                                PieChartData(
-                                  centerSpaceRadius: 48,
-                                  sectionsSpace: 2,
-                                  sections: hasBattleData
-                                      ? [
-                                          PieChartSectionData(
-                                            value: wins.toDouble(),
-                                            color: Colors.green,
-                                            radius: 24,
-                                            title: '',
+                              child: Stack(
+                                children: [
+                                  PieChart(
+                                    PieChartData(
+                                      centerSpaceRadius: 48,
+                                      sectionsSpace: 2,
+                                      sections: hasBattleData
+                                          ? [
+                                              PieChartSectionData(
+                                                value: wins.toDouble(),
+                                                color: Colors.green,
+                                                radius: 24,
+                                                title: '',
+                                              ),
+                                              PieChartSectionData(
+                                                value: losses.toDouble(),
+                                                color: Colors.red,
+                                                radius: 24,
+                                                title: '',
+                                              ),
+                                            ]
+                                          : [
+                                              PieChartSectionData(
+                                                value: 1,
+                                                color: Colors.grey.shade300,
+                                                radius: 24,
+                                                title: '',
+                                              ),
+                                            ],
+                                    ),
+                                  ),
+                                  Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          '勝率',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.grey.shade700,
                                           ),
-                                          PieChartSectionData(
-                                            value: losses.toDouble(),
-                                            color: Colors.red,
-                                            radius: 24,
-                                            title: '',
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${hasBattleData ? ((wins / totalBattles) * 100).toStringAsFixed(1) : '0.0'}%',
+                                          style: const TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
                                           ),
-                                        ]
-                                      : [
-                                          PieChartSectionData(
-                                            value: 1,
-                                            color: Colors.grey.shade300,
-                                            radius: 24,
-                                            title: '',
-                                          ),
-                                        ],
-                                ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -211,23 +238,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       },
                     );
                   },
-                );
-              },
-            ),
-            const SizedBox(height: 18),
-            const Divider(height: 28, thickness: 1.2),
-            const _SectionHeader(title: '財務資訊'),
-            const SizedBox(height: 12),
-            ValueListenableBuilder<int>(
-              valueListenable: PlayerAccount.money,
-              builder: (_, money, __) {
-                return Text(
-                  '\$$money',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
                 );
               },
             ),
@@ -281,7 +291,7 @@ class _BattleLegendItem extends StatelessWidget {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
-        Text('$label $value', style: const TextStyle(fontSize: 14)),
+        Text('$label $value', style: const TextStyle(fontSize: 16)),
       ],
     );
   }

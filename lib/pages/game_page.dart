@@ -1,13 +1,8 @@
-/// 對戰介面主Widget
-/// 功能：
-///  - 顯示玩家與電腦的實時分數和頭像
-///  - 呈現題目選項，玩家進行作答
-///  - 管理10秒倒數計時器與分數計算
-///  - 處理隱藏式CPU答題邏輯（CPU答案先隱藏，玩家回答後才揭曉）
-///  - 實現最後一題雙倍獎懲的特殊機制
+// 這是對戰介面，顯示玩家與機器人的頭像並答題比賽
 import 'dart:async';
 import 'dart:math';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 import '../models/question.dart';
@@ -29,65 +24,56 @@ class GamePage extends StatefulWidget {
 
 class _GamePageState extends State<GamePage>
     with SingleTickerProviderStateMixin {
-  /// 每題的作答時間(秒)
+  // 每題的作答時間10秒，時間越久分數越低(每秒扣1分)，最低0分
   static const int _secondsPerQuestion = 10;
   final Random _random = Random();
 
-  /// 計時器脈搏動畫控制器（用於計時器視覺反饋）
+  // 計時器脈搏動畫控制器
   late final AnimationController _pulseController;
+  late final AudioPlayer _questionAudioPlayer;
 
-  /// 主計時器：每秒倒數一次，驅動時間流逝與分數衰減
+  // 主計時器：每秒倒數一次
   Timer? _timer;
-
-  /// 當前問題的剩餘時間(秒)
+  Timer? _questionTransitionTimer;
   int _timeLeft = _secondsPerQuestion;
-
-  /// 當前問題索引(0-based)
   int _questionIndex = 0;
-
-  /// 玩家累積分數
   int _playerScore = 0;
-
-  /// 電腦累積分數
   int _cpuScore = 0;
 
-  /// 標記當前題目是否已結束(玩家和電腦都已作答，或時間已結束)
+  // 標記當前題目是否已結束(玩家和電腦都已作答，或時間已結束)
   bool _isQuestionClosed = false;
 
-  /// 當前題目的分數：起始10分，每秒衰減1分(最低0分)
-  /// 用於同時應用於玩家和電腦，實現時間越久得分越低的機制
+  // 當前題目的分數：起始10分，每秒衰減1分(最低0分)
   int _currentScorePerQuestion = 10;
-
-  /// CPU答題延遲計時器(1-7秒隨機延遲)
+  // 電腦答題延遲計時器(1-7秒隨機延遲)
   Timer? _cpuAnswerTimer;
 
-  /// 玩家本題選擇的選項索引
-  /// null = 尚未作答或超時未選擇
+  // 玩家本題選擇的選項索引
+  // null = 尚未作答或超時未選擇
   int? _playerAnswerIndex;
 
-  /// 電腦本題已揭曉的選項索引
-  /// null = 尚未揭曉(可能是未答題，或CPU答案還未決定)
+  // 電腦本題已揭曉的選項索引
+  // null = 尚未揭曉(可能是未答題，或CPU答案還未決定)
   int? _cpuAnswerIndex;
 
-  /// CPU已在背景決定的答案，但尚未揭曉給玩家看
-  /// 流程：CPU隨機決定→存入_cpuPendingAnswerIndex → 玩家作答後→移至_cpuAnswerIndex
-  /// 這樣可以隱藏CPU答案，直到玩家回答，保持遊戲公平性
+  // 顯示在分數條下方的上一題結果
+  bool? _lastPlayerAnswerCorrect;
+  bool? _lastCpuAnswerCorrect;
+
+  // CPU已在背景決定的答案，但尚未揭曉給玩家看
+  // 流程：CPU隨機決定→存入_cpuPendingAnswerIndex → 玩家作答後→移至_cpuAnswerIndex
+  // 這樣可以隱藏CPU答案，直到玩家回答，保持遊戲公平性
   int? _cpuPendingAnswerIndex;
 
-  /// 判斷是否為最後一題
+  // 判斷是否為最後一題
   bool get _isFinalQuestion =>
       _questionIndex == widget.city.questions.length - 1;
-
-  /// 獲取當前題目的分數倍數：最後一題為2倍，其他為1倍
+  // 獲取當前題目的分數倍數：最後一題為2倍
   int get _questionMultiplier => _isFinalQuestion ? 2 : 1;
-
-  /// 獲取本題答對分數：基礎分數(時間衰減後) × 倍數
+  // 獲取本題答對分數
   int get _correctAnswerScore => _currentScorePerQuestion * _questionMultiplier;
-
-  /// 獲取本題答錯扣分：-5 × 倍數
   int get _wrongAnswerPenalty => -5 * _questionMultiplier;
-
-  /// 獲取當前題目物件
+  // 獲取當前題目物件
   Question get _currentQuestion => widget.city.questions[_questionIndex];
 
   @override
@@ -99,15 +85,40 @@ class _GamePageState extends State<GamePage>
       lowerBound: 0.9,
       upperBound: 1.1,
     );
+    _questionAudioPlayer = AudioPlayer();
     _startQuestionTimer();
   }
 
-  /// 初始化新一題的計時和答題狀態
-  /// 功能：
-  ///  1. 重置題目狀態(時間、答題狀況)
-  ///  2. 重置分數為10(最高分)
-  ///  3. 啟動10秒倒數計時器
-  ///  4. 啟動CPU答題延遲器
+  Future<void> _playCurrentQuestionAudio() async {
+    final audioPath = _currentQuestion.audioPath;
+    if (audioPath == null || audioPath.isEmpty) {
+      return;
+    }
+
+    final questionId = _currentQuestion.id;
+
+    try {
+      await _questionAudioPlayer.stop();
+      if (!mounted || _currentQuestion.id != questionId) {
+        return;
+      }
+
+      debugPrint('Play audio for $questionId: $audioPath');
+      await _questionAudioPlayer.play(AssetSource(audioPath));
+    } catch (error) {
+      debugPrint('Audio play failed for $questionId: $error');
+    }
+  }
+
+  Future<void> _stopCurrentQuestionAudio() async {
+    try {
+      await _questionAudioPlayer.stop();
+    } catch (_) {
+      // ignore stop errors during fast question switching or dispose
+    }
+  }
+
+  // 初始化新一題的計時和答題狀態
   void _startQuestionTimer() {
     // 重置題目狀態
     _isQuestionClosed = false;
@@ -115,11 +126,17 @@ class _GamePageState extends State<GamePage>
     _playerAnswerIndex = null;
     _cpuAnswerIndex = null;
     _cpuPendingAnswerIndex = null;
+    _lastPlayerAnswerCorrect = null;
+    _lastCpuAnswerCorrect = null;
     _timer?.cancel();
     _cpuAnswerTimer?.cancel();
+    _questionTransitionTimer?.cancel();
 
     // 啟動脈搏動畫
     _pulseController.repeat(reverse: true);
+
+    // 換題時先停掉上一題音訊，再播放目前題目音訊
+    unawaited(_playCurrentQuestionAudio());
 
     // 重置分數為最高分
     _currentScorePerQuestion = 10;
@@ -144,13 +161,13 @@ class _GamePageState extends State<GamePage>
     });
   }
 
-  /// 排程CPU答題(延遲1-7秒後執行)
-  /// 目的：模擬CPU思考時間，保持遊戲節奏
-  /// 流程：
-  ///  1. 隨機延遲1-7秒
-  ///  2. 調用_resolveCpuAnswer()決定CPU答案
-  ///  3. 若玩家已作答，立即結束此題並進行下一題
-  ///  4. 若玩家未作答，CPU答案保持隱藏直到玩家作答
+  // 排程CPU答題(延遲1-7秒後執行)
+  // 目的：模擬CPU思考時間，保持遊戲節奏
+  // 流程：
+  //  1. 隨機延遲1-7秒
+  //  2. 調用_resolveCpuAnswer()決定CPU答案
+  //  3. 若玩家已作答，立即結束此題並進行下一題
+  //  4. 若玩家未作答，CPU答案保持隱藏直到玩家作答
   void _scheduleCpuAnswer() {
     _cpuAnswerTimer?.cancel();
     // 隨機延遲1到7秒(模擬CPU思考)
@@ -158,7 +175,7 @@ class _GamePageState extends State<GamePage>
 
     _cpuAnswerTimer = Timer(Duration(seconds: delaySeconds), () {
       // 防止重複執行或已結束的題目
-      if (!mounted || _isQuestionClosed || _cpuPendingAnswerIndex != null) {
+      if (!mounted || _cpuPendingAnswerIndex != null) {
         return;
       }
 
@@ -168,21 +185,17 @@ class _GamePageState extends State<GamePage>
 
       // 若玩家已答題，立即結束此題
       if (_playerAnswerIndex != null) {
-        _isQuestionClosed = true;
-        _timer?.cancel();
-        _cpuAnswerTimer?.cancel();
-        _pulseController.stop();
-        _advanceToNextQuestionOrResult();
+        _finishQuestionAndPause();
       }
     });
   }
 
-  /// 處理玩家超時未作答的情況(10秒倒完)
-  /// 流程：
-  ///  1. 若玩家未作答，扣5分(最後一題扣10分)
-  ///  2. 若CPU還未決定，強制CPU立即決定
-  ///  3. 若CPU已決定但未揭曉，立即揭曉
-  ///  4. 進行下一題
+  // 處理玩家超時未作答的情況(10秒倒完)
+  // 流程：
+  //  1. 若玩家未作答，扣5分(最後一題扣10分)
+  //  2. 若CPU還未決定，強制CPU立即決定
+  //  3. 若CPU已決定但未揭曉，立即揭曉
+  //  4. 進行下一題
   void _onTimeout() {
     if (_isQuestionClosed) return; // 防止重複執行
     _isQuestionClosed = true;
@@ -195,6 +208,7 @@ class _GamePageState extends State<GamePage>
     if (_playerAnswerIndex == null) {
       setState(() {
         _playerScore += _wrongAnswerPenalty; // 未答扣分
+        _lastPlayerAnswerCorrect = false;
       });
     }
 
@@ -211,16 +225,16 @@ class _GamePageState extends State<GamePage>
       });
     }
 
-    _advanceToNextQuestionOrResult();
+    _finishQuestionAndPause();
   }
 
-  /// 處理玩家選擇答案
-  /// 流程：
-  ///  1. 記錄玩家選擇並立即計算分數(答對或答錯)
-  ///  2. 檢查CPU答案狀態：
-  ///     a. CPU已揭曉 → 立即結束此題
-  ///     b. CPU已決定但隱藏 → 揭曉CPU答案並結束此題
-  ///     c. CPU未決定 → 等待CPU決定
+  // 處理玩家選擇答案
+  // 流程：
+  //  1. 記錄玩家選擇並立即計算分數(答對或答錯)
+  //  2. 檢查CPU答案狀態：
+  //     a. CPU已揭曉 → 立即結束此題
+  //     b. CPU已決定但隱藏 → 揭曉CPU答案並結束此題
+  //     c. CPU未決定 → 等待CPU決定
   void _onAnswerSelected(int index) {
     // 防止重複答題(一題只能選一個答案)
     if (_isQuestionClosed || _playerAnswerIndex != null) return;
@@ -233,15 +247,12 @@ class _GamePageState extends State<GamePage>
     setState(() {
       _playerAnswerIndex = index; // 觸發題目卡片顯示玩家選擇
       _playerScore += isCorrect ? _correctAnswerScore : _wrongAnswerPenalty;
+      _lastPlayerAnswerCorrect = isCorrect;
     });
 
     // 情境1：CPU已揭曉答案，可以立即結束此題
     if (_cpuAnswerIndex != null) {
-      _isQuestionClosed = true;
-      _timer?.cancel();
-      _cpuAnswerTimer?.cancel();
-      _pulseController.stop();
-      _advanceToNextQuestionOrResult();
+      _finishQuestionAndPause();
       return;
     }
 
@@ -251,24 +262,40 @@ class _GamePageState extends State<GamePage>
         _cpuAnswerIndex = _cpuPendingAnswerIndex;
         _cpuPendingAnswerIndex = null;
       });
-      _isQuestionClosed = true;
-      _timer?.cancel();
-      _cpuAnswerTimer?.cancel();
-      _pulseController.stop();
-      _advanceToNextQuestionOrResult();
+      _finishQuestionAndPause();
+      return;
     }
-    // 情境3：CPU還未決定，等待CPU決定
+
+    // 情境3：CPU還未決定，鎖定題目並等待CPU決定
+    // 當CPU定時器觸發時，會自動揭曉並進行下一題
+    _isQuestionClosed = true;
+    _timer?.cancel();
+    _pulseController.stop();
   }
 
-  /// 決定CPU答案並計算CPU分數
-  /// 參數：revealImmediately
-  ///   true  = 直接揭曉答案(玩家已答題或時間已到)
-  ///   false = 隱藏答案直到玩家作答
-  /// 流程：
-  ///  1. 隨機決定CPU答對或答錯(60%答對率)
-  ///  2. 選擇具體選項(答對→選正確答案；答錯→隨機選其他)
-  ///  3. 根據結果更新CPU分數(使用時間衰減後的分數)
-  ///  4. 根據revealImmediately決定立即揭曉或隱藏
+  void _finishQuestionAndPause() {
+    if (!mounted) return;
+    _isQuestionClosed = true;
+    _timer?.cancel();
+    _cpuAnswerTimer?.cancel();
+    _pulseController.stop();
+
+    _questionTransitionTimer?.cancel();
+    _questionTransitionTimer = Timer(const Duration(seconds: 1), () {
+      if (!mounted) return;
+      _advanceToNextQuestionOrResult();
+    });
+  }
+
+  // 決定CPU答案並計算CPU分數
+  // 參數：revealImmediately
+  //   true  = 直接揭曉答案(玩家已答題或時間已到)
+  //   false = 隱藏答案直到玩家作答
+  // 流程：
+  //  1. 隨機決定CPU答對或答錯(60%答對率)
+  //  2. 選擇具體選項(答對→選正確答案；答錯→隨機選其他)
+  //  3. 根據結果更新CPU分數(使用時間衰減後的分數)
+  //  4. 根據revealImmediately決定立即揭曉或隱藏
   void _resolveCpuAnswer({required bool revealImmediately}) {
     final correct = _currentQuestion.correctIndex;
     // CPU答對機率為60%
@@ -283,6 +310,7 @@ class _GamePageState extends State<GamePage>
       _cpuScore += cpuIndex == correct
           ? _correctAnswerScore // 答對加分
           : _wrongAnswerPenalty; // 答錯扣分
+      _lastCpuAnswerCorrect = cpuIndex == correct;
 
       if (revealImmediately) {
         // 立即揭曉CPU答案(觸發題目卡片顯示CPU勾/叉)
@@ -295,16 +323,17 @@ class _GamePageState extends State<GamePage>
     });
   }
 
-  /// 推進到下一題或進入結果頁面
-  /// 流程：
-  ///  1. 檢查是否已是最後一題
-  ///  2. 最後一題 → 跳轉到ResultPage結算戰鬥
-  ///  3. 非最後一題 → 題目索引+1，重新初始化計時器並開始下一題
+  // 推進到下一題或進入結果頁面
+  // 流程：
+  //  1. 檢查是否已是最後一題
+  //  2. 最後一題 → 跳轉到ResultPage結算戰鬥
+  //  3. 非最後一題 → 題目索引+1，重新初始化計時器並開始下一題
   void _advanceToNextQuestionOrResult() {
     if (!mounted) return;
 
     // 檢查是否已是最後一題
     if (_questionIndex == widget.city.questions.length - 1) {
+      unawaited(_stopCurrentQuestionAudio());
       // 進入結果頁面結算分數
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -332,6 +361,8 @@ class _GamePageState extends State<GamePage>
   void dispose() {
     _timer?.cancel();
     _cpuAnswerTimer?.cancel();
+    _questionTransitionTimer?.cancel();
+    unawaited(_questionAudioPlayer.dispose());
     _pulseController.dispose();
     super.dispose();
   }
@@ -345,21 +376,43 @@ class _GamePageState extends State<GamePage>
     final maxScore = (widget.city.questions.length - 1) * 10 + 20;
     const cpuAvatar = 'assets/images/avatar/bot.png';
 
-    // 判斷玩家與電腦是否答對，用於左右大頭貼的勾叉顯示
-    final int correct = question.correctIndex;
-    final bool? playerCorrect = _playerAnswerIndex == null
-        ? null
-        : _playerAnswerIndex == correct;
-    final bool? cpuCorrect = _cpuAnswerIndex == null
-        ? null
-        : _cpuAnswerIndex == correct;
-    final bool cpuThinking = _cpuAnswerIndex == null && !_isQuestionClosed;
+    // 顯示上一題結果，避免下一題開始時被清掉
+    final bool? playerCorrect = _lastPlayerAnswerCorrect;
+    final bool? cpuCorrect = _lastCpuAnswerCorrect;
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.city.name), centerTitle: true),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: Text(widget.city.name),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: SafeArea(
         child: Stack(
           children: [
+            // 背景圖：城市大圖
+            Positioned.fill(
+              child: Image.asset(
+                widget.city.backgroundImage,
+                fit: BoxFit.cover,
+              ),
+            ),
+            // 深色遮罩提升可讀性
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.22),
+                      Colors.black.withOpacity(0.12),
+                    ],
+                  ),
+                ),
+              ),
+            ),
             // ── 左側：玩家分數長條＋大頭貼 ──
             Positioned(
               top: 80,
@@ -395,7 +448,6 @@ class _GamePageState extends State<GamePage>
                 label: '電腦',
                 avatarAsset: cpuAvatar,
                 answerCorrect: cpuCorrect, // 傳入勾叉狀態
-                showThinking: cpuThinking, // CPU思考中時顯示問號
               ),
             ),
 
@@ -418,6 +470,7 @@ class _GamePageState extends State<GamePage>
                   const SizedBox(height: 12),
                   // 圓形計時器(會隨著脈搏動畫放大縮小)
                   CircularTimerProgress(
+                    key: ValueKey(_questionIndex),
                     timeLeft: _timeLeft,
                     totalTime: _secondsPerQuestion,
                     pulse: _pulseController,
@@ -456,9 +509,7 @@ class _GamePageState extends State<GamePage>
   }
 }
 
-/// 最後一題提示橫幅
-/// 功能：在最後一題時顯示動畫警告橫幅
-/// 說明：提醒玩家本題分數翻倍(答對雙倍加分，答錯雙倍扣分)
+// 最後一題，本題分數翻倍(答錯也雙倍扣分)
 class _FinalQuestionBanner extends StatefulWidget {
   const _FinalQuestionBanner();
 
@@ -466,20 +517,15 @@ class _FinalQuestionBanner extends StatefulWidget {
   State<_FinalQuestionBanner> createState() => _FinalQuestionBannerState();
 }
 
-/// 最後一題橫幅的狀態管理類
-/// 動畫效果：
-///  - 縮放：0.78 → 1.2(彈性過度)
-///  - 透明度：0 → 1(漸顯)
-///  - 持續時間：900毫秒
+// 最後一題的動畫橫幅
 class _FinalQuestionBannerState extends State<_FinalQuestionBanner>
     with SingleTickerProviderStateMixin {
-  /// 動畫控制器
   late final AnimationController _controller;
 
-  /// 縮放動畫(使用彈性曲線)
+  // 縮放動畫(使用彈性曲線)
   late final Animation<double> _scale;
 
-  /// 透明度動畫(使用淡出曲線)
+  // 透明度動畫(使用淡出曲線)
   late final Animation<double> _opacity;
 
   @override

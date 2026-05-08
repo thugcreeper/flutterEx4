@@ -20,12 +20,11 @@ class _CitySelectionPageState extends State<CitySelectionPage> {
 
   void _startCountdown(CityLevel city) {
     if (PlayerAccount.money.value < city.entryFee) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('金額不足，先去銀行領錢!!!', style: const TextStyle(fontSize: 24)),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
+      _showMoneySnackBar(
+        context,
+        title: '金額不足，先去銀行領錢!!!',
+        icon: Icons.lock_clock,
+        accent: const Color(0xFFFF6B6B),
       );
       return;
     }
@@ -44,9 +43,12 @@ class _CitySelectionPageState extends State<CitySelectionPage> {
     // 扣除入場費用
     final ok = PlayerAccount.spend(city.entryFee);
     if (!ok) {
-      ScaffoldMessenger.of(
+      _showMoneySnackBar(
         context,
-      ).showSnackBar(const SnackBar(content: Text('金額不足，先去銀行領錢!!!')));
+        title: '金額不足，先去銀行領錢!!!',
+        icon: Icons.lock,
+        accent: const Color(0xFFFF8A65),
+      );
       setState(() {
         _pendingCity = null;
       });
@@ -97,6 +99,85 @@ class _CitySelectionPageState extends State<CitySelectionPage> {
       ),
     );
   }
+}
+
+void _showMoneySnackBar(
+  BuildContext context, {
+  required String title,
+  required IconData icon,
+  required Color accent,
+}) {
+  ScaffoldMessenger.of(context)
+    ..clearSnackBars()
+    ..showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: EdgeInsets.zero,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        content: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF4A1F16),
+                accent,
+                const Color(0xFFFFC857),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.18),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withOpacity(0.3),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.16),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: Colors.white, size: 26),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
 }
 
 //這是選擇程式後的倒數計時畫面

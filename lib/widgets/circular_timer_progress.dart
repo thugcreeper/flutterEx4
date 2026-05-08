@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:circular_countdown_timer/circular_countdown_timer.dart';
 
 class CircularTimerProgress extends StatelessWidget {
   final int timeLeft;
@@ -14,37 +15,42 @@ class CircularTimerProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final percent = (timeLeft / totalTime).clamp(0.0, 1.0);
-    final isUrgent = timeLeft <= 5;
-    final color = isUrgent
-        ? Theme.of(context).colorScheme.error
-        : Theme.of(context).colorScheme.primary;
+    Color color;
+    // 剩餘時間小於等於3秒時，顏色變紅
+    if (timeLeft <= 3) {
+      color = Colors.red;
+    } else {
+      color = const Color.fromARGB(255, 154, 154, 154);
+    }
+
     return ScaleTransition(
       scale: pulse,
-      child: SizedBox(
-        width: 160,
-        height: 50,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            CircularProgressIndicator(
-              value: percent,
-              strokeWidth: 45, // 圓環寬度
-              backgroundColor: color.withOpacity(0.15),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(50.0), // 數字與圓環間距
-              child: Text(
-                '$timeLeft',
-                style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
+      child: CircularCountDownTimer(
+        height: 80,
+        width: 80,
+        duration: totalTime,
+
+        initialDuration: totalTime - timeLeft,
+
+        fillColor: color,
+        ringColor: color.withOpacity(0.2),
+        strokeWidth: 10.0, // 圓環寬度
+
+        textStyle: Theme.of(context).textTheme.headlineMedium?.copyWith(
+          color: color,
+          fontWeight: FontWeight.bold,
         ),
+
+        isReverse: true,
+        isReverseAnimation: true,
+        isTimerTextShown: true,
+        timeFormatterFunction: (defaultFormatterFunction, duration) {
+          return '${duration.inSeconds}';
+        },
+        onComplete: () {
+          debugPrint("倒數結束");
+        },
+        onChange: (timeString) {},
       ),
     );
   }

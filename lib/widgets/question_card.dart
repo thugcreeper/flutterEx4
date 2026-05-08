@@ -24,12 +24,17 @@ class QuestionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // 圖片題幹＋純文字選項的特殊排版
     if (question.type == QuestionType.imageWithTextPrompt) {
-      return Card(
-        elevation: 3,
+      return Container(
+        height: 600,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white24, width: 1.6),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center, // 圖片題幹置中
+            mainAxisSize: MainAxisSize.max,
             children: [
               Center(
                 child: Column(
@@ -41,7 +46,6 @@ class QuestionCard extends StatelessWidget {
                           showDialog(
                             context: context,
                             builder: (context) => Dialog(
-                              backgroundColor: Colors.transparent,
                               child: InteractiveViewer(
                                 child: Image.asset(
                                   question.imageUrl ?? '',
@@ -63,8 +67,12 @@ class QuestionCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      question.prompt,
-                      style: Theme.of(context).textTheme.bodyLarge,
+                      question.prompt, //題目敘述
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: .w500,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -72,20 +80,27 @@ class QuestionCard extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               // 文字選項列表
-              ...List.generate(question.options.length, (index) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _OptionTile(
-                    index: index,
-                    text: question.options[index].text ?? '',
-                    correctIndex: question.correctIndex,
-                    playerAnswerIndex: playerAnswerIndex,
-                    cpuAnswerIndex: cpuAnswerIndex,
-                    questionLocked: questionLocked,
-                    onTap: () => onAnswer(index),
-                  ),
-                );
-              }),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: .center,
+                  children: [
+                    ...List.generate(question.options.length, (index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _OptionTile(
+                          index: index,
+                          text: question.options[index].text ?? '',
+                          correctIndex: question.correctIndex,
+                          playerAnswerIndex: playerAnswerIndex,
+                          cpuAnswerIndex: cpuAnswerIndex,
+                          questionLocked: questionLocked,
+                          onTap: () => onAnswer(index),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -93,34 +108,35 @@ class QuestionCard extends StatelessWidget {
     }
 
     // 純文字題 或 圖片選項題 的通用排版
-    return Card(
-      elevation: 3,
+    return Container(
+      height: 600,
+      decoration: BoxDecoration(
+        //color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white24, width: 1.6),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center, // 文字題的題幹置中
           children: [
             Text(
               question.prompt,
-              style: Theme.of(context).textTheme.titleLarge,
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+                fontSize: 18,
+              ),
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: question.type == QuestionType.image
-                  ? _ImageOptions(
-                      question: question,
-                      onAnswer: onAnswer,
-                      playerAnswerIndex: playerAnswerIndex,
-                      cpuAnswerIndex: cpuAnswerIndex,
-                      questionLocked: questionLocked,
-                    )
-                  : _TextOptions(
-                      question: question,
-                      onAnswer: onAnswer,
-                      playerAnswerIndex: playerAnswerIndex,
-                      cpuAnswerIndex: cpuAnswerIndex,
-                      questionLocked: questionLocked,
-                    ),
+              child: _TextOptions(
+                question: question,
+                onAnswer: onAnswer,
+                playerAnswerIndex: playerAnswerIndex,
+                cpuAnswerIndex: cpuAnswerIndex,
+                questionLocked: questionLocked,
+              ),
             ),
           ],
         ),
@@ -129,9 +145,7 @@ class QuestionCard extends StatelessWidget {
   }
 }
 
-// ── 輔助：計算選項背景色 ──────────────────────────────
-
-/// 答題後：正確答案 → 淺綠，選錯的選項 → 淺紅，其餘不變
+// 答題後：正確答案 → 淺綠，選錯的選項 → 淺紅，其餘不變
 Color _optionColor(
   BuildContext context,
   int index,
@@ -140,50 +154,64 @@ Color _optionColor(
   int? cpuAnswerIndex,
 ) {
   final answered = playerAnswerIndex != null || cpuAnswerIndex != null;
-  if (!answered) return Theme.of(context).colorScheme.secondaryContainer;
+  if (!answered) return Colors.white;
 
-  if (index == correctIndex) return const Color(0xFFB9F6CA); // 淺綠
-  if (index == playerAnswerIndex || index == cpuAnswerIndex) {
-    return const Color(0xFFFFCDD2); // 淺紅（選錯）
+  // 玩家選對 → 綠色
+  if (playerAnswerIndex == index && playerAnswerIndex == correctIndex) {
+    return Colors.green.shade700;
   }
-  return Theme.of(context).colorScheme.secondaryContainer;
+  // 玩家選錯 → 紅色
+  if (playerAnswerIndex == index && playerAnswerIndex != correctIndex) {
+    return Colors.red.shade700;
+  }
+  // 電腦選對 → 綠色
+  if (cpuAnswerIndex == index && cpuAnswerIndex == correctIndex) {
+    return Colors.green.shade700;
+  }
+  // 電腦選錯 → 紅色
+  if (cpuAnswerIndex == index && cpuAnswerIndex != correctIndex) {
+    return Colors.red.shade700;
+  }
+
+  return Colors.white;
 }
 
-// ── 輔助：組合勾/叉圖示 ──────────────────────────────
-
-/// 玩家選擇該選項 → 實心勾/叉；電腦選擇 → 空心勾/叉（較小）
-List<Widget> _buildIndicators(
+// 答題後：選項邊框顏色變化，正確答案 → 綠色邊框，選錯的選項 → 紅色邊框，未作答或未揭曉 → 淺灰邊框
+Color _optionBorderColor(
+  BuildContext context,
   int index,
   int correctIndex,
   int? playerAnswerIndex,
   int? cpuAnswerIndex,
 ) {
-  final result = <Widget>[];
+  final answered = playerAnswerIndex != null || cpuAnswerIndex != null;
+  if (!answered) return Colors.black12;
 
-  if (playerAnswerIndex == index) {
-    final ok = index == correctIndex;
-    result.add(
-      Icon(
-        ok ? Icons.check_circle : Icons.cancel,
-        color: ok ? Colors.green.shade700 : Colors.red.shade700,
-        size: 20,
-      ),
-    );
+  if (index == correctIndex) return Colors.green.shade500;
+  if (index == playerAnswerIndex || index == cpuAnswerIndex) {
+    return Colors.red.shade400;
   }
+  return Colors.white.withOpacity(0.18);
+}
 
-  if (cpuAnswerIndex == index) {
-    if (result.isNotEmpty) result.add(const SizedBox(width: 3));
-    final ok = index == correctIndex;
-    result.add(
-      Icon(
-        ok ? Icons.check_circle_outline : Icons.cancel_outlined,
-        color: ok ? Colors.green.shade700 : Colors.red.shade700,
-        size: 18,
-      ),
-    );
-  }
+//根據狀態調整選項邊框粗細的函數
+double _optionBorderWidth(
+  int index,
+  int correctIndex,
+  int? playerAnswerIndex,
+  int? cpuAnswerIndex,
+) {
+  final answered = playerAnswerIndex != null || cpuAnswerIndex != null;
+  if (!answered) return 1.4;
 
-  return result;
+  final isCorrect = index == correctIndex;
+  final isPlayerPick = index == playerAnswerIndex;
+  final isCpuPick = index == cpuAnswerIndex;
+
+  if (isCorrect) return 4.0;
+  // 玩家或電腦選錯的選項邊框稍微加粗
+  if (isPlayerPick || isCpuPick) return 2.2;
+  return 1.4;
 }
 
 // ── 純文字選項 ────────────────────────────────────────
@@ -203,19 +231,17 @@ class _TextOptions extends StatelessWidget {
   final int? cpuAnswerIndex;
   final bool questionLocked;
 
-  static const List<String> _labels = ['A', 'B', 'C', 'D'];
-
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.center,
+
       children: [
         for (int i = 0; i < question.options.length; i++) ...[
           if (i > 0) const SizedBox(height: 10),
           Expanded(
             child: _OptionTile(
               index: i,
-              label: i < _labels.length ? _labels[i] : '${i + 1}',
               text: question.options[i].text ?? '',
               correctIndex: question.correctIndex,
               playerAnswerIndex: playerAnswerIndex,
@@ -241,7 +267,6 @@ class _OptionTile extends StatelessWidget {
     required this.cpuAnswerIndex,
     required this.questionLocked,
     required this.onTap,
-    this.label,
   });
 
   final int index;
@@ -251,7 +276,6 @@ class _OptionTile extends StatelessWidget {
   final int? cpuAnswerIndex;
   final bool questionLocked;
   final VoidCallback onTap;
-  final String? label; // 選項標籤（A/B/C/D），部分排版不傳
 
   @override
   Widget build(BuildContext context) {
@@ -262,171 +286,59 @@ class _OptionTile extends StatelessWidget {
       playerAnswerIndex,
       cpuAnswerIndex,
     );
-    final indicators = _buildIndicators(
+
+    final answered = questionLocked || playerAnswerIndex != null;
+    final borderColor = _optionBorderColor(
+      context,
       index,
       correctIndex,
       playerAnswerIndex,
       cpuAnswerIndex,
     );
-    final answered = questionLocked || playerAnswerIndex != null;
+    final borderWidth = _optionBorderWidth(
+      index,
+      correctIndex,
+      playerAnswerIndex,
+      cpuAnswerIndex,
+    );
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: borderWidth),
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: answered ? null : onTap, // 答題後禁止再次點擊
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                // 選項標籤圓圈（A/B/C/D）
-                if (label != null) ...[
-                  Container(
-                    width: 26,
-                    height: 26,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black12,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      label!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                ],
-                // 選項文字
                 Expanded(
-                  child: Text(text, style: const TextStyle(fontSize: 15)),
+                  child: Text(
+                    text,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: answered && index == correctIndex
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: answered && index == correctIndex
+                          ? Colors.green.shade900
+                          : null,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-                // 勾/叉圖示（答題後才出現）
-                if (indicators.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  ...indicators,
-                ],
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-// ── 圖片選項（2×2 格） ────────────────────────────────
-
-/// 圖片選項：以 2×2 格線排列，答題後同樣染色並在右上角疊加勾/叉
-class _ImageOptions extends StatelessWidget {
-  const _ImageOptions({
-    required this.question,
-    required this.onAnswer,
-    required this.playerAnswerIndex,
-    required this.cpuAnswerIndex,
-    required this.questionLocked,
-  });
-
-  final Question question;
-  final ValueChanged<int> onAnswer;
-  final int? playerAnswerIndex;
-  final int? cpuAnswerIndex;
-  final bool questionLocked;
-
-  // 當選項圖片載入失敗時使用的備用圖片
-  static const String _fallbackImageUrl =
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQs9gUXKwt2KErC_jWWlkZkGabxpeGchT-fyw&s';
-
-  @override
-  Widget build(BuildContext context) {
-    final answered = questionLocked || playerAnswerIndex != null;
-
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-      ),
-      itemCount: question.options.length,
-      itemBuilder: (context, index) {
-        final option = question.options[index];
-        final bgColor = _optionColor(
-          context,
-          index,
-          question.correctIndex,
-          playerAnswerIndex,
-          cpuAnswerIndex,
-        );
-        final indicators = _buildIndicators(
-          index,
-          question.correctIndex,
-          playerAnswerIndex,
-          cpuAnswerIndex,
-        );
-
-        return InkWell(
-          onTap: answered ? null : () => onAnswer(index),
-          borderRadius: BorderRadius.circular(16),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: bgColor,
-            ),
-            child: Stack(
-              children: [
-                // 圖片與文字置中
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          option.imageUrl ?? _fallbackImageUrl,
-                          width: 72,
-                          height: 72,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Image.network(
-                            _fallbackImageUrl,
-                            width: 72,
-                            height: 72,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        option.text ?? '',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
-                ),
-                // 勾/叉圖示疊加在右上角
-                if (indicators.isNotEmpty)
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: indicators,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

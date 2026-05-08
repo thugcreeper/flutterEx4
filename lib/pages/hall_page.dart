@@ -1,7 +1,6 @@
 //這是進入城市前的大廳頁面，也是啟動app看到的第一個葉面
 import 'package:flutter/material.dart';
 import '../widgets/lvlAndMoneyBanner.dart';
-import 'dart:async';
 import '../models/player_account.dart';
 
 // 讓 HallPage 變成 StatefulWidget 以便更新存款進度。
@@ -13,66 +12,35 @@ class HallPage extends StatefulWidget {
 }
 
 class _HallPageState extends State<HallPage> {
-  static const int _bankMax = 200;
   static const String _fallbackImageUrl =
       'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQs9gUXKwt2KErC_jWWlkZkGabxpeGchT-fyw&s';
 
-  int _bankValue = 0;
-  Timer? _bankTimer;
-
-  void _ensureBankTimer() {
-    if (_bankTimer?.isActive ?? false) return;
-    _bankTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-      setState(() {
-        if (_bankValue < _bankMax) {
-          _bankValue += 1;
-        } else {
-          timer.cancel();
-        }
-      });
-    });
-  }
-
   Future<void> _handleBankTap() async {
-    final hasMoney = _bankValue > 0;
-    final collected = _bankValue;
+    final collected = PlayerAccount.collectBankMoney();
+    final hasMoney = collected > 0;
     if (hasMoney) {
-      setState(() {
-        _bankValue = 0;
-      });
       PlayerAccount.addMoney(collected);
-      _ensureBankTimer();
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          hasMoney ? '成功領取 $collected 元' : '目前沒有可領取的金錢',
-          style: const TextStyle(fontSize: 24),
-        ),
-        backgroundColor: hasMoney ? Colors.green : Colors.red,
-        duration: const Duration(seconds: 2),
-      ),
+    _showMoneySnackBar(
+      context,
+      isSuccess: hasMoney,
+      title: hasMoney ? '成功領取 \$$collected' : '目前沒有可領取的金錢!!!',
+
+      //icon saving是撲滿，另一個是沙漏
+      icon: hasMoney ? Icons.savings : Icons.hourglass_bottom,
+      accent: hasMoney ? const Color(0xFF26C281) : const Color(0xFFFF8A65),
     );
   }
 
   @override
   void initState() {
     super.initState();
-    // 每秒增加 1 元，超過上限就停。
-    _ensureBankTimer();
-  }
-
-  @override
-  void dispose() {
-    _bankTimer?.cancel();
-    super.dispose();
+    // 全域銀行計時器由 PlayerAccount 維護，頁面進來時只要確保它已啟動。
+    PlayerAccount.ensureBankTimer();
   }
 
   @override
   Widget build(BuildContext context) {
-    final progress = _bankValue / _bankMax;
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -156,42 +124,49 @@ class _HallPageState extends State<HallPage> {
                   // 半透明卡片美化 + 進度條
                   Align(
                     alignment: Alignment.bottomCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.65),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.orangeAccent.withOpacity(0.6),
+                    child: ValueListenableBuilder<int>(
+                      valueListenable: PlayerAccount.bankValue,
+                      builder: (context, bankValue, _) {
+                        final progress = bankValue / PlayerAccount.bankMax;
+                        return Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.65),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.orangeAccent.withOpacity(0.6),
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // 顯示銀行存款數值
+                                Text(
+                                  'Bank: $bankValue / ${PlayerAccount.bankMax}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                // 進度條隨時間變化
+                                LinearProgressIndicator(
+                                  value: progress,
+                                  minHeight: 12,
+                                  backgroundColor: Colors.white24,
+                                  valueColor:
+                                      const AlwaysStoppedAnimation<Color>(
+                                        Colors.orangeAccent,
+                                      ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // 顯示銀行存款數值
-                            Text(
-                              'Bank: $_bankValue / $_bankMax',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            // 進度條隨時間變化
-                            LinearProgressIndicator(
-                              value: progress,
-                              minHeight: 12,
-                              backgroundColor: Colors.white24,
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                Colors.orangeAccent,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -202,4 +177,83 @@ class _HallPageState extends State<HallPage> {
       ),
     );
   }
+}
+
+//自訂snack bar
+void _showMoneySnackBar(
+  BuildContext context, {
+  required bool isSuccess,
+  required String title,
+  required IconData icon,
+  required Color accent,
+}) {
+  ScaffoldMessenger.of(context)
+    ..clearSnackBars()
+    ..showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: EdgeInsets.zero,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        content: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              // 根據成功與否切換不同的漸層顏色
+              colors: isSuccess
+                  ? [const Color(0xFF0F3D3E), accent, const Color(0xFF8DEB9C)]
+                  : [const Color(0xFF5A1E1E), accent, const Color(0xFFFFC857)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.18),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withOpacity(0.28),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.16),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: Colors.white, size: 26),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
 }

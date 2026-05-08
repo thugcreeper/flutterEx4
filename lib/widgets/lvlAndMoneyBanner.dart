@@ -39,8 +39,8 @@ class LvlAndMoneyBanner extends StatelessWidget {
                         // 等級圖示
                         Image.asset(
                           'assets/images/icons/level.png',
-                          width: 60,
-                          height: 80,
+                          width: 40,
+                          height: 40,
                         ),
                         const SizedBox(width: 4),
 

@@ -98,7 +98,7 @@ class _ResultPageState extends State<ResultPage>
   @override
   Widget build(BuildContext context) {
     final bool isWin = widget.playerScore >= widget.cpuScore;
-    const cpuAvatar = 'assets/images/hall/yoBattle.png';
+    const cpuAvatar = 'assets/images/avatar/bot.png';
 
     return Scaffold(
       body: Stack(
